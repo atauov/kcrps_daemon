@@ -1,11 +1,11 @@
 package repository
 
 import (
+	"daemon"
 	"fmt"
-	"github.com/sirupsen/logrus"
-
-	"github.com/atauov/kcrps"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/sirupsen/logrus"
 )
 
 type PosInvoicePostgres struct {
@@ -29,13 +29,12 @@ func (r *PosInvoicePostgres) UpdateClientName(invoiceId int, clientName string) 
 	return err
 }
 
-func (r *PosInvoicePostgres) GetInWorkInvoices(userId int) ([]kcrps.Invoice, error) {
-	var invoices []kcrps.Invoice
+func (r *PosInvoicePostgres) GetInWorkInvoices(posTerminalId uuid.UUID) ([]daemon.Invoice, error) {
+	var invoices []daemon.Invoice
 
-	query := fmt.Sprintf("SELECT il.id, il.uuid, il.status, il.amount, il.account, il.message, il.in_work FROM %s il "+
-		"INNER JOIN %s ul on il.id=ul.invoice_id WHERE ul.user_id = $1 AND il.in_work=1 ORDER BY il.id",
-		invoicesTable, usersInvoicesTable)
-	err := r.db.Select(&invoices, query, userId)
+	query := fmt.Sprintf("SELECT id, uuid, status, amount, account, message FROM %s il WHERE pos_id = $1 "+
+		"AND status IN(1, 2, 4, 6, 10) ORDER BY created_at", invoicesTable)
+	err := r.db.Select(&invoices, query, posTerminalId)
 
 	return invoices, err
 }
@@ -47,4 +46,12 @@ func (r *PosInvoicePostgres) GetInvoiceAmount(invoiceId int) (int, error) {
 		return 0, err
 	}
 	return amount, nil
+}
+
+func (r *PosInvoicePostgres) GetAllPosTerminals() ([]daemon.PosTerminal, error) {
+	var terminals []daemon.PosTerminal
+	query := fmt.Sprintf("SELECT pos_id, user_id, webhook_url, flask_id FROM %s",
+		posTable)
+	err := r.db.Select(&terminals, query)
+	return terminals, err
 }

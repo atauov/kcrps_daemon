@@ -4,6 +4,3 @@ db:
   port: "5432"
   dbname: "maindb"
   sslmode: "disable"
-
-pos-devices:
-  - 1

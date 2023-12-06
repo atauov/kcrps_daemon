@@ -6,6 +6,7 @@ import (
 	"daemon/pkg/repository"
 	"encoding/json"
 	"errors"
+	"github.com/google/uuid"
 	"io"
 	"net/http"
 	"strconv"
@@ -18,7 +19,6 @@ const (
 	CancelInvoiceURL    = "http://localhost:8080/cancel-invoice"
 	CancelPaymentURL    = "http://localhost:8080/cancel-payment"
 	CheckInvoicesURL    = "http://localhost:8080/check-invoices"
-	WebHookURL          = "http://192.168.0.5:1111/webhook"
 	StatusInvoiceOk     = "Invoice successful sent"
 	StatusNoAccount     = "No kaspi account on number"
 	StatusPaymentOk     = "Payment successful"
@@ -41,12 +41,12 @@ func NewPosInvoiceService(repo repository.PosInvoice) *PosInvoiceService {
 	return &PosInvoiceService{repo: repo}
 }
 
-func (s *PosInvoiceService) SendInvoice(userId int, invoice daemon.Invoice) error {
+func (s *PosInvoiceService) SendInvoice(posTerminal daemon.PosTerminal, invoice daemon.Invoice) error {
 	invoiceForFlask := RequestInvoice{
-		UserID:  userId,
-		Account: invoice.Account[1:],
-		Amount:  invoice.Amount,
-		Message: invoice.Message,
+		PosTerminalId: posTerminal.FlaskId,
+		Account:       invoice.Account[1:],
+		Amount:        invoice.Amount,
+		Message:       invoice.Message,
 	}
 
 	jsonData, err := json.Marshal(invoiceForFlask)
@@ -82,13 +82,13 @@ func (s *PosInvoiceService) SendInvoice(userId int, invoice daemon.Invoice) erro
 			return err
 		}
 
-		webhook(invoice.Id, StatusInvoiceOk, invoice.Account, response.ClientName)
+		sendWebhook(invoice.Id, StatusInvoiceOk, invoice.Account, response.ClientName, posTerminal.WebHookURL)
 
 		return nil
 	} else if resp.StatusCode == http.StatusNotFound {
 		invoice.InWork = 0
 
-		webhook(invoice.Id, StatusNoAccount, invoice.Account, "unknown")
+		sendWebhook(invoice.Id, StatusNoAccount, invoice.Account, "unknown", posTerminal.WebHookURL)
 
 		return nil
 	} else if resp.StatusCode == http.StatusInternalServerError {
@@ -98,10 +98,10 @@ func (s *PosInvoiceService) SendInvoice(userId int, invoice daemon.Invoice) erro
 	return errors.New("unknown error")
 }
 
-func (s *PosInvoiceService) CancelInvoice(userId, invoiceId int) error {
+func (s *PosInvoiceService) CancelInvoice(posTerminal daemon.PosTerminal, invoiceId int) error {
 	invoiceCancel := RequestCancelInvoice{
-		UserID: userId,
-		ID:     strconv.Itoa(invoiceId),
+		PosTerminalId: posTerminal.FlaskId,
+		ID:            strconv.Itoa(invoiceId),
 	}
 	jsonData, err := json.Marshal(invoiceCancel)
 	if err != nil {
@@ -129,7 +129,7 @@ func (s *PosInvoiceService) CancelInvoice(userId, invoiceId int) error {
 			return err
 		}
 
-		webhook(invoiceId, StatusInvoiceCancel, "", "")
+		sendWebhook(invoiceId, StatusInvoiceCancel, "", "", posTerminal.WebHookURL)
 
 		return nil
 	} else if resp.StatusCode == http.StatusInternalServerError {
@@ -139,13 +139,13 @@ func (s *PosInvoiceService) CancelInvoice(userId, invoiceId int) error {
 	return errors.New("unknown error")
 }
 
-func (s *PosInvoiceService) CancelPayment(userId, amount, isToday, invoiceId int) error {
+func (s *PosInvoiceService) CancelPayment(posTerminal daemon.PosTerminal, amount, isToday, invoiceId int) error {
 
 	paymentCancel := RequestCancelPayment{
-		UserID:  userId,
-		IsToday: isToday,
-		Amount:  amount,
-		ID:      strconv.Itoa(invoiceId),
+		PosTerminalId: posTerminal.FlaskId,
+		IsToday:       isToday,
+		Amount:        amount,
+		ID:            strconv.Itoa(invoiceId),
 	}
 	jsonData, err := json.Marshal(paymentCancel)
 	if err != nil {
@@ -173,7 +173,7 @@ func (s *PosInvoiceService) CancelPayment(userId, amount, isToday, invoiceId int
 			return err
 		}
 
-		webhook(invoiceId, StatusPaymentRefund, "", "")
+		sendWebhook(invoiceId, StatusPaymentRefund, "", "", posTerminal.WebHookURL)
 
 		return nil
 	} else if resp.StatusCode == http.StatusInternalServerError {
@@ -183,11 +183,11 @@ func (s *PosInvoiceService) CancelPayment(userId, amount, isToday, invoiceId int
 	return errors.New("unknown error")
 }
 
-func (s *PosInvoiceService) CheckInvoices(userId, isToday int, IDs []string) error {
+func (s *PosInvoiceService) CheckInvoices(posTerminal daemon.PosTerminal, isToday int, IDs []string) error {
 	invoicesForCheck := RequestCheck{
-		UserID:  userId,
-		IsToday: isToday,
-		IDs:     IDs,
+		PosTerminalId: posTerminal.FlaskId,
+		IsToday:       isToday,
+		IDs:           IDs,
 	}
 	jsonData, err := json.Marshal(invoicesForCheck)
 	if err != nil {
@@ -224,9 +224,9 @@ func (s *PosInvoiceService) CheckInvoices(userId, isToday int, IDs []string) err
 			}
 			switch v {
 			case 2:
-				webhook(invoiceId, StatusPaymentOk, "", "")
+				sendWebhook(invoiceId, StatusPaymentOk, "", "", posTerminal.WebHookURL)
 			case 1:
-				webhook(invoiceId, StatusInvoiceCancel, "", "")
+				sendWebhook(invoiceId, StatusInvoiceCancel, "", "", posTerminal.WebHookURL)
 			}
 		}
 
@@ -246,24 +246,14 @@ func (s *PosInvoiceService) UpdateClientName(invoiceId int, clientName string) e
 	return s.repo.UpdateClientName(invoiceId, clientName)
 }
 
-func (s *PosInvoiceService) GetInWorkInvoices(userId int) ([]daemon.Invoice, error) {
-	return s.repo.GetInWorkInvoices(userId)
+func (s *PosInvoiceService) GetInWorkInvoices(posTerminalId uuid.UUID) ([]daemon.Invoice, error) {
+	return s.repo.GetInWorkInvoices(posTerminalId)
 }
 
 func (s *PosInvoiceService) GetInvoiceAmount(invoiceId int) (int, error) {
 	return s.repo.GetInvoiceAmount(invoiceId)
 }
 
-func webhook(invoiceId int, status string, account string, clientName string) {
-	jsonWebHook, _ := json.Marshal(WebHook{
-		Id:         invoiceId,
-		Status:     status,
-		Account:    account,
-		ClientName: clientName,
-	})
-	client := &http.Client{}
-	resp, _ := http.NewRequest(http.MethodPost, WebHookURL, bytes.NewBuffer(jsonWebHook))
-	if _, err := client.Do(resp); err != nil {
-		logrus.Error(err)
-	}
+func (s *PosInvoiceService) GetAllPosTerminals() ([]daemon.PosTerminal, error) {
+	return s.repo.GetAllPosTerminals()
 }

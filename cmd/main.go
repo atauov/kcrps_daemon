@@ -36,7 +36,7 @@ func main() {
 	services := service.NewService(repos)
 	handlers := handler.NewHandler(services)
 
-	handlers.Daemon(viper.GetIntSlice("pos-devices"))
+	handlers.Daemon()
 
 	if err = db.Close(); err != nil {
 		logrus.Errorf("error occured on db connection close: %s", err.Error())

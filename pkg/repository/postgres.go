@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	usersTable         = "users"
+	posTable           = "pos_terminals"
 	invoicesTable      = "invoices"
 	usersInvoicesTable = "users_invoices"
 )
