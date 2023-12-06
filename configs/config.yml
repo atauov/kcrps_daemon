@@ -1,0 +1,11 @@
+port: "80"
+
+db:
+  username: "postgres"
+  host: "localhost"
+  port: "5432"
+  dbname: "maindb"
+  sslmode: "disable"
+
+pos-devices:
+  - 1
