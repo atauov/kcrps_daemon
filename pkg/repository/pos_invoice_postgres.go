@@ -31,7 +31,7 @@ func (r *PosInvoicePostgres) UpdateClientName(invoice daemon.Invoice, clientName
 func (r *PosInvoicePostgres) GetInWorkInvoices(posTerminal daemon.PosTerminal) ([]daemon.Invoice, error) {
 	var invoices []daemon.Invoice
 
-	query := fmt.Sprintf("SELECT uuid, status, amount, account, message FROM %s il WHERE pos_id=$1 "+
+	query := fmt.Sprintf("SELECT uuid, status, amount, account, message FROM %s WHERE pos_id=$1 "+
 		"AND status IN($2, $3, $4, $5, $6) ORDER BY created_at", invoicesTable)
 	err := r.db.Select(&invoices, query, posTerminal.Id, STATUS1, STATUS2, STATUS4, STATUS6, STATUS10)
 
@@ -49,8 +49,7 @@ func (r *PosInvoicePostgres) GetInvoiceAmount(invoice daemon.Invoice) (int, erro
 
 func (r *PosInvoicePostgres) GetAllPosTerminals() ([]daemon.PosTerminal, error) {
 	var terminals []daemon.PosTerminal
-	query := fmt.Sprintf("SELECT pos_id, user_id, webhook_url, flask_id FROM %s",
-		posTable)
+	query := fmt.Sprintf(`SELECT pos_id, user_id, webhook_url, flask_id FROM %s`, posTable)
 	err := r.db.Select(&terminals, query)
 	return terminals, err
 }
