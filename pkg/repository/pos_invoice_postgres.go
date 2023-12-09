@@ -3,7 +3,6 @@ package repository
 import (
 	"daemon"
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 )
@@ -29,12 +28,12 @@ func (r *PosInvoicePostgres) UpdateClientName(invoice daemon.Invoice, clientName
 	return err
 }
 
-func (r *PosInvoicePostgres) GetInWorkInvoices(posTerminalId uuid.UUID) ([]daemon.Invoice, error) {
+func (r *PosInvoicePostgres) GetInWorkInvoices(posTerminal daemon.PosTerminal) ([]daemon.Invoice, error) {
 	var invoices []daemon.Invoice
 
 	query := fmt.Sprintf("SELECT uuid, status, amount, account, message FROM %s il WHERE pos_id=$1 "+
 		"AND status IN($2, $3, $4, $5, $6) ORDER BY created_at", invoicesTable)
-	err := r.db.Select(&invoices, query, posTerminalId, STATUS1, STATUS2, STATUS4, STATUS6, STATUS10)
+	err := r.db.Select(&invoices, query, posTerminal.Id, STATUS1, STATUS2, STATUS4, STATUS6, STATUS10)
 
 	return invoices, err
 }

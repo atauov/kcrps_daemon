@@ -3,7 +3,6 @@ package service
 import (
 	"daemon"
 	"daemon/pkg/repository"
-	"github.com/google/uuid"
 )
 
 type PosInvoice interface {
@@ -13,7 +12,7 @@ type PosInvoice interface {
 	CheckInvoices(posTerminal daemon.PosTerminal, isToday int, invoices []string) error
 	UpdateStatus(invoice daemon.Invoice, status int) error
 	UpdateClientName(invoice daemon.Invoice, clientName string) error
-	GetInWorkInvoices(posTerminalId uuid.UUID) ([]daemon.Invoice, error)
+	GetInWorkInvoices(posTerminal daemon.PosTerminal) ([]daemon.Invoice, error)
 	GetInvoiceAmount(invoice daemon.Invoice) (int, error)
 	GetAllPosTerminals() ([]daemon.PosTerminal, error)
 }

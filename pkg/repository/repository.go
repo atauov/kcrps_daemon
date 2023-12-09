@@ -2,14 +2,13 @@ package repository
 
 import (
 	"daemon"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
 type PosInvoice interface {
 	UpdateStatus(invoice daemon.Invoice, status int) error
 	UpdateClientName(invoice daemon.Invoice, clientName string) error
-	GetInWorkInvoices(posTerminalId uuid.UUID) ([]daemon.Invoice, error)
+	GetInWorkInvoices(posTerminal daemon.PosTerminal) ([]daemon.Invoice, error)
 	GetInvoiceAmount(invoice daemon.Invoice) (int, error)
 	GetAllPosTerminals() ([]daemon.PosTerminal, error)
 }

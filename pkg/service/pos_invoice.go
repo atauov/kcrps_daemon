@@ -6,7 +6,6 @@ import (
 	"daemon/pkg/repository"
 	"encoding/json"
 	"errors"
-	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
@@ -250,8 +249,8 @@ func (s *PosInvoiceService) UpdateClientName(invoice daemon.Invoice, clientName 
 	return s.repo.UpdateClientName(invoice, clientName)
 }
 
-func (s *PosInvoiceService) GetInWorkInvoices(posTerminalId uuid.UUID) ([]daemon.Invoice, error) {
-	return s.repo.GetInWorkInvoices(posTerminalId)
+func (s *PosInvoiceService) GetInWorkInvoices(posTerminal daemon.PosTerminal) ([]daemon.Invoice, error) {
+	return s.repo.GetInWorkInvoices(posTerminal)
 }
 
 func (s *PosInvoiceService) GetInvoiceAmount(invoice daemon.Invoice) (int, error) {

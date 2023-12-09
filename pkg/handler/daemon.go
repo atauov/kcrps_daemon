@@ -43,7 +43,7 @@ func (h *Handler) Daemon() {
 }
 
 func (h *Handler) allOperations(posTerminal daemon.PosTerminal) {
-	invoices, err := h.services.GetInWorkInvoices(posTerminal.Id)
+	invoices, err := h.services.GetInWorkInvoices(posTerminal)
 	if err != nil {
 		logrus.Error(err)
 		return
