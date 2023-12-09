@@ -7,14 +7,14 @@ import (
 )
 
 type PosInvoice interface {
-	SendInvoice(posTerminal daemon.PosTerminal, invoice daemon.Invoice) error
-	CancelInvoice(posTerminal daemon.PosTerminal, invoiceId int) error
-	CancelPayment(posTerminal daemon.PosTerminal, amount, isToday, invoiceId int) error
+	SendInvoice(invoice daemon.Invoice, posTerminal daemon.PosTerminal) error
+	CancelInvoice(invoice daemon.Invoice, posTerminal daemon.PosTerminal) error
+	CancelPayment(invoice daemon.Invoice, posTerminal daemon.PosTerminal, amount, isToday int) error
 	CheckInvoices(posTerminal daemon.PosTerminal, isToday int, invoices []string) error
-	UpdateStatus(id, status, inWork int) error
-	UpdateClientName(invoiceId int, clientName string) error
+	UpdateStatus(invoice daemon.Invoice, status int) error
+	UpdateClientName(invoice daemon.Invoice, clientName string) error
 	GetInWorkInvoices(posTerminalId uuid.UUID) ([]daemon.Invoice, error)
-	GetInvoiceAmount(invoiceId int) (int, error)
+	GetInvoiceAmount(invoice daemon.Invoice) (int, error)
 	GetAllPosTerminals() ([]daemon.PosTerminal, error)
 }
 

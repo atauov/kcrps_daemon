@@ -2,6 +2,7 @@ package handler
 
 import (
 	"daemon"
+	"daemon/pkg/repository"
 	"github.com/sirupsen/logrus"
 	"strconv"
 	"sync"
@@ -52,25 +53,27 @@ func (h *Handler) allOperations(posTerminal daemon.PosTerminal) {
 
 	for _, invoice := range invoices {
 		switch invoice.Status {
-		case 0:
-			if err = h.services.SendInvoice(posTerminal, invoice); err != nil {
+		case repository.STATUS1:
+			if err = h.services.SendInvoice(invoice, posTerminal); err != nil {
 				logrus.Error(err)
 			}
-		case 1:
+		case repository.STATUS2:
 			forCheck = append(forCheck, strconv.Itoa(invoice.UUID))
-		case 3:
-			if err = h.services.CancelInvoice(posTerminal, invoice.Id); err != nil {
+		case repository.STATUS4:
+			if err = h.services.CancelInvoice(invoice, posTerminal); err != nil {
 				logrus.Error(err)
 			}
-		case 4:
-			amount, err := h.services.GetInvoiceAmount(invoice.Id)
+		case repository.STATUS10:
+			amount, err := h.services.GetInvoiceAmount(invoice)
 			if err != nil {
 				logrus.Error(err)
 				continue
 			}
-			if err = h.services.CancelPayment(posTerminal, amount, 1, invoice.Id); err != nil {
+			if err = h.services.CancelPayment(invoice, posTerminal, amount, 1); err != nil {
 				logrus.Error(err)
 			}
+		default:
+			continue
 		}
 	}
 	if len(forCheck) > 0 {

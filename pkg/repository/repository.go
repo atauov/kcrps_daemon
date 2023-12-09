@@ -7,10 +7,10 @@ import (
 )
 
 type PosInvoice interface {
-	UpdateStatus(id, status, inWork int) error
-	UpdateClientName(invoiceId int, clientName string) error
+	UpdateStatus(invoice daemon.Invoice, status int) error
+	UpdateClientName(invoice daemon.Invoice, clientName string) error
 	GetInWorkInvoices(posTerminalId uuid.UUID) ([]daemon.Invoice, error)
-	GetInvoiceAmount(invoiceId int) (int, error)
+	GetInvoiceAmount(invoice daemon.Invoice) (int, error)
 	GetAllPosTerminals() ([]daemon.PosTerminal, error)
 }
 

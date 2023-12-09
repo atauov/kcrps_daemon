@@ -41,7 +41,7 @@ func NewPosInvoiceService(repo repository.PosInvoice) *PosInvoiceService {
 	return &PosInvoiceService{repo: repo}
 }
 
-func (s *PosInvoiceService) SendInvoice(posTerminal daemon.PosTerminal, invoice daemon.Invoice) error {
+func (s *PosInvoiceService) SendInvoice(invoice daemon.Invoice, posTerminal daemon.PosTerminal) error {
 	invoiceForFlask := RequestInvoice{
 		PosTerminalId: posTerminal.FlaskId,
 		Account:       invoice.Account[1:],
@@ -75,20 +75,22 @@ func (s *PosInvoiceService) SendInvoice(posTerminal daemon.PosTerminal, invoice 
 		if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
 			return err
 		}
-		if err = s.repo.UpdateClientName(invoice.Id, response.ClientName); err != nil {
+		if err = s.repo.UpdateClientName(invoice, response.ClientName); err != nil {
 			return err
 		}
-		if err = s.repo.UpdateStatus(invoice.Id, 1, 1); err != nil {
+		if err = s.repo.UpdateStatus(invoice, 1); err != nil {
 			return err
 		}
 
-		sendWebhook(invoice.Id, StatusInvoiceOk, invoice.Account, response.ClientName, posTerminal.WebHookURL)
+		sendWebhook(invoice.UUID, StatusInvoiceOk, invoice.Account, response.ClientName, posTerminal.WebHookURL)
 
 		return nil
 	} else if resp.StatusCode == http.StatusNotFound {
-		invoice.InWork = 0
+		if err = s.repo.UpdateStatus(invoice, repository.STATUS3); err != nil {
+			return err
+		}
 
-		sendWebhook(invoice.Id, StatusNoAccount, invoice.Account, "unknown", posTerminal.WebHookURL)
+		sendWebhook(invoice.UUID, StatusNoAccount, invoice.Account, "unknown", posTerminal.WebHookURL)
 
 		return nil
 	} else if resp.StatusCode == http.StatusInternalServerError {
@@ -98,10 +100,10 @@ func (s *PosInvoiceService) SendInvoice(posTerminal daemon.PosTerminal, invoice 
 	return errors.New("unknown error")
 }
 
-func (s *PosInvoiceService) CancelInvoice(posTerminal daemon.PosTerminal, invoiceId int) error {
+func (s *PosInvoiceService) CancelInvoice(invoice daemon.Invoice, posTerminal daemon.PosTerminal) error {
 	invoiceCancel := RequestCancelInvoice{
 		PosTerminalId: posTerminal.FlaskId,
-		ID:            strconv.Itoa(invoiceId),
+		ID:            strconv.Itoa(invoice.UUID),
 	}
 	jsonData, err := json.Marshal(invoiceCancel)
 	if err != nil {
@@ -125,11 +127,11 @@ func (s *PosInvoiceService) CancelInvoice(posTerminal daemon.PosTerminal, invoic
 	}(resp.Body)
 
 	if resp.StatusCode == http.StatusOK {
-		if err = s.repo.UpdateStatus(invoiceId, 3, 0); err != nil {
+		if err = s.repo.UpdateStatus(invoice, repository.STATUS5); err != nil {
 			return err
 		}
 
-		sendWebhook(invoiceId, StatusInvoiceCancel, "", "", posTerminal.WebHookURL)
+		sendWebhook(invoice.UUID, StatusInvoiceCancel, "", "", posTerminal.WebHookURL)
 
 		return nil
 	} else if resp.StatusCode == http.StatusInternalServerError {
@@ -139,13 +141,13 @@ func (s *PosInvoiceService) CancelInvoice(posTerminal daemon.PosTerminal, invoic
 	return errors.New("unknown error")
 }
 
-func (s *PosInvoiceService) CancelPayment(posTerminal daemon.PosTerminal, amount, isToday, invoiceId int) error {
+func (s *PosInvoiceService) CancelPayment(invoice daemon.Invoice, posTerminal daemon.PosTerminal, amount, isToday int) error {
 
 	paymentCancel := RequestCancelPayment{
 		PosTerminalId: posTerminal.FlaskId,
 		IsToday:       isToday,
 		Amount:        amount,
-		ID:            strconv.Itoa(invoiceId),
+		ID:            strconv.Itoa(invoice.UUID),
 	}
 	jsonData, err := json.Marshal(paymentCancel)
 	if err != nil {
@@ -169,11 +171,11 @@ func (s *PosInvoiceService) CancelPayment(posTerminal daemon.PosTerminal, amount
 	}(resp.Body)
 
 	if resp.StatusCode == http.StatusOK {
-		if err = s.repo.UpdateStatus(invoiceId, 4, 0); err != nil {
+		if err = s.repo.UpdateStatus(invoice, repository.STATUS11); err != nil {
 			return err
 		}
 
-		sendWebhook(invoiceId, StatusPaymentRefund, "", "", posTerminal.WebHookURL)
+		sendWebhook(invoice.UUID, StatusPaymentRefund, invoice.Account, invoice.ClientName, posTerminal.WebHookURL)
 
 		return nil
 	} else if resp.StatusCode == http.StatusInternalServerError {
@@ -217,16 +219,19 @@ func (s *PosInvoiceService) CheckInvoices(posTerminal daemon.PosTerminal, isToda
 			return err
 		}
 		for k, v := range result {
-			uuid, _ := strconv.Atoi(k)
-			invoiceId := uuid - 100000
-			if err = s.UpdateStatus(invoiceId, v, 0); err != nil {
-				return err
-			}
+			uuId, _ := strconv.Atoi(k)
+
 			switch v {
 			case 2:
-				sendWebhook(invoiceId, StatusPaymentOk, "", "", posTerminal.WebHookURL)
+				if err = s.UpdateStatus(daemon.Invoice{UUID: uuId}, repository.STATUS9); err != nil {
+					return err
+				}
+				sendWebhook(uuId, StatusPaymentOk, "", "", posTerminal.WebHookURL)
 			case 1:
-				sendWebhook(invoiceId, StatusInvoiceCancel, "", "", posTerminal.WebHookURL)
+				if err = s.UpdateStatus(daemon.Invoice{UUID: uuId}, repository.STATUS8); err != nil {
+					return err
+				}
+				sendWebhook(uuId, StatusInvoiceCancel, "", "", posTerminal.WebHookURL)
 			}
 		}
 
@@ -238,20 +243,20 @@ func (s *PosInvoiceService) CheckInvoices(posTerminal daemon.PosTerminal, isToda
 	return errors.New("unknown error")
 }
 
-func (s *PosInvoiceService) UpdateStatus(id, status, inWork int) error {
-	return s.repo.UpdateStatus(id, status, inWork)
+func (s *PosInvoiceService) UpdateStatus(invoice daemon.Invoice, status int) error {
+	return s.repo.UpdateStatus(invoice, status)
 }
 
-func (s *PosInvoiceService) UpdateClientName(invoiceId int, clientName string) error {
-	return s.repo.UpdateClientName(invoiceId, clientName)
+func (s *PosInvoiceService) UpdateClientName(invoice daemon.Invoice, clientName string) error {
+	return s.repo.UpdateClientName(invoice, clientName)
 }
 
 func (s *PosInvoiceService) GetInWorkInvoices(posTerminalId uuid.UUID) ([]daemon.Invoice, error) {
 	return s.repo.GetInWorkInvoices(posTerminalId)
 }
 
-func (s *PosInvoiceService) GetInvoiceAmount(invoiceId int) (int, error) {
-	return s.repo.GetInvoiceAmount(invoiceId)
+func (s *PosInvoiceService) GetInvoiceAmount(invoice daemon.Invoice) (int, error) {
+	return s.repo.GetInvoiceAmount(invoice)
 }
 
 func (s *PosInvoiceService) GetAllPosTerminals() ([]daemon.PosTerminal, error) {

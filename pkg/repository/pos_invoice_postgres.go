@@ -16,33 +16,33 @@ func NewPosInvoicePostgres(db *sqlx.DB) *PosInvoicePostgres {
 	return &PosInvoicePostgres{db: db}
 }
 
-func (r *PosInvoicePostgres) UpdateStatus(id, status, inWork int) error {
-	query := fmt.Sprintf(`UPDATE %s SET status=$1, in_work=$2 WHERE id = $3`, invoicesTable)
-	_, err := r.db.Exec(query, status, inWork, id)
-	logrus.Printf("NEW STATUS = %d, IN_WORK = %d", status, inWork)
+func (r *PosInvoicePostgres) UpdateStatus(invoice daemon.Invoice, status int) error {
+	query := fmt.Sprintf(`UPDATE %s SET status=$1 WHERE pos_id=$2 AND uuid = $3`, invoicesTable)
+	_, err := r.db.Exec(query, status, invoice.PosID, invoice.UUID)
+	logrus.Printf("NEW STATUS = %d", status)
 	return err
 }
 
-func (r *PosInvoicePostgres) UpdateClientName(invoiceId int, clientName string) error {
-	query := fmt.Sprintf(`UPDATE %s SET client_name=$1 WHERE id = $2`, invoicesTable)
-	_, err := r.db.Exec(query, clientName, invoiceId)
+func (r *PosInvoicePostgres) UpdateClientName(invoice daemon.Invoice, clientName string) error {
+	query := fmt.Sprintf(`UPDATE %s SET client_name=$1 WHERE pos_id=$2 AND uuid = $3`, invoicesTable)
+	_, err := r.db.Exec(query, clientName, invoice.PosID, invoice.UUID)
 	return err
 }
 
 func (r *PosInvoicePostgres) GetInWorkInvoices(posTerminalId uuid.UUID) ([]daemon.Invoice, error) {
 	var invoices []daemon.Invoice
 
-	query := fmt.Sprintf("SELECT id, uuid, status, amount, account, message FROM %s il WHERE pos_id = $1 "+
-		"AND status IN(1, 2, 4, 6, 10) ORDER BY created_at", invoicesTable)
-	err := r.db.Select(&invoices, query, posTerminalId)
+	query := fmt.Sprintf("SELECT uuid, status, amount, account, message FROM %s il WHERE pos_id=$1 "+
+		"AND status IN($2, $3, $4, $5, $6) ORDER BY created_at", invoicesTable)
+	err := r.db.Select(&invoices, query, posTerminalId, STATUS1, STATUS2, STATUS4, STATUS6, STATUS10)
 
 	return invoices, err
 }
 
-func (r *PosInvoicePostgres) GetInvoiceAmount(invoiceId int) (int, error) {
+func (r *PosInvoicePostgres) GetInvoiceAmount(invoice daemon.Invoice) (int, error) {
 	var amount int
-	query := fmt.Sprintf(`SELECT amount FROM %s WHERE id=$1`, invoicesTable)
-	if err := r.db.Get(&amount, query, invoiceId); err != nil {
+	query := fmt.Sprintf(`SELECT amount FROM %s WHERE pos_id=$1 AND uuid=$2`, invoicesTable)
+	if err := r.db.Get(&amount, query, invoice.PosID, invoice.UUID); err != nil {
 		return 0, err
 	}
 	return amount, nil
