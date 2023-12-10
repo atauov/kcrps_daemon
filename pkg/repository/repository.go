@@ -11,6 +11,7 @@ type PosInvoice interface {
 	GetInWorkInvoices(posTerminal daemon.PosTerminal) ([]daemon.Invoice, error)
 	GetInvoiceAmount(invoice daemon.Invoice) (int, error)
 	GetAllPosTerminals() ([]daemon.PosTerminal, error)
+	SetOldInvoicesToCancel() error
 }
 
 type Repository struct {

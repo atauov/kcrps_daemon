@@ -53,3 +53,9 @@ func (r *PosInvoicePostgres) GetAllPosTerminals() ([]daemon.PosTerminal, error) 
 	err := r.db.Select(&terminals, query)
 	return terminals, err
 }
+
+func (r *PosInvoicePostgres) SetOldInvoicesToCancel() error {
+	query := fmt.Sprintf(`UPDATE %s SET status=$1 WHERE status=$2 AND created_at < NOW() - INTERVAL '20 hours'`, invoicesTable)
+	_, err := r.db.Exec(query, STATUS6, STATUS2)
+	return err
+}

@@ -2,17 +2,19 @@ package service
 
 import (
 	"bytes"
+	"daemon"
 	"encoding/json"
 	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
-func sendWebhook(invoiceId int, status string, account string, clientName string, webhookURL string) {
+func sendWebhook(invoice daemon.Invoice, webhookURL string) {
 	jsonWebHook, _ := json.Marshal(WebHook{
-		Id:         invoiceId,
-		Status:     status,
-		Account:    account,
-		ClientName: clientName,
+		PosId:      invoice.PosID,
+		Id:         invoice.UUID,
+		Status:     invoice.Status,
+		Account:    invoice.Account,
+		ClientName: invoice.ClientName,
 	})
 	client := &http.Client{}
 	resp, _ := http.NewRequest(http.MethodPost, webhookURL, bytes.NewBuffer(jsonWebHook))

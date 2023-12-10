@@ -13,15 +13,10 @@ import (
 )
 
 const (
-	CreateInvoiceURL    = "http://localhost:8080/create-invoice"
-	CancelInvoiceURL    = "http://localhost:8080/cancel-invoice"
-	CancelPaymentURL    = "http://localhost:8080/cancel-payment"
-	CheckInvoicesURL    = "http://localhost:8080/check-invoices"
-	StatusInvoiceOk     = "Invoice successful sent"
-	StatusNoAccount     = "No kaspi account on number"
-	StatusPaymentOk     = "Payment successful"
-	StatusInvoiceCancel = "Invoice has been cancelled"
-	StatusPaymentRefund = "Refund successful"
+	CreateInvoiceURL = "http://localhost:8080/create-invoice"
+	CancelInvoiceURL = "http://localhost:8080/cancel-invoice"
+	CancelPaymentURL = "http://localhost:8080/cancel-payment"
+	CheckInvoicesURL = "http://localhost:8080/check-invoices"
 )
 
 type PosInvoiceService struct {
@@ -29,8 +24,9 @@ type PosInvoiceService struct {
 }
 
 type WebHook struct {
+	PosId      string `json:"pos-id"`
 	Id         int    `json:"id"`
-	Status     string `json:"status"`
+	Status     int    `json:"status"`
 	Account    string `json:"account"`
 	ClientName string `json:"client-name"`
 }
@@ -76,19 +72,19 @@ func (s *PosInvoiceService) SendInvoice(invoice daemon.Invoice, posTerminal daem
 		if err = s.repo.UpdateClientName(invoice, response.ClientName); err != nil {
 			return err
 		}
-		if err = s.repo.UpdateStatus(invoice, 1); err != nil {
+		if err = s.repo.UpdateStatus(invoice, repository.STATUS1); err != nil {
 			return err
 		}
-
-		sendWebhook(invoice.UUID, StatusInvoiceOk, invoice.Account, response.ClientName, posTerminal.WebHookURL)
+		invoice.Status = repository.STATUS1
+		sendWebhook(invoice, posTerminal.WebHookURL)
 
 		return nil
 	} else if resp.StatusCode == http.StatusNotFound {
 		if err = s.repo.UpdateStatus(invoice, repository.STATUS3); err != nil {
 			return err
 		}
-
-		sendWebhook(invoice.UUID, StatusNoAccount, invoice.Account, "unknown", posTerminal.WebHookURL)
+		invoice.Status = repository.STATUS3
+		sendWebhook(invoice, posTerminal.WebHookURL)
 
 		return nil
 	} else if resp.StatusCode == http.StatusInternalServerError {
@@ -125,11 +121,20 @@ func (s *PosInvoiceService) CancelInvoice(invoice daemon.Invoice, posTerminal da
 	}(resp.Body)
 
 	if resp.StatusCode == http.StatusOK {
-		if err = s.repo.UpdateStatus(invoice, repository.STATUS5); err != nil {
+		var newStatus int
+		switch invoice.Status {
+		case repository.STATUS4:
+			newStatus = repository.STATUS5
+		case repository.STATUS6:
+			newStatus = repository.STATUS7
+		default:
 			return err
 		}
-
-		sendWebhook(invoice.UUID, StatusInvoiceCancel, "", "", posTerminal.WebHookURL)
+		if err = s.repo.UpdateStatus(invoice, newStatus); err != nil {
+			return err
+		}
+		invoice.Status = newStatus
+		sendWebhook(invoice, posTerminal.WebHookURL)
 
 		return nil
 	} else if resp.StatusCode == http.StatusInternalServerError {
@@ -172,8 +177,8 @@ func (s *PosInvoiceService) CancelPayment(invoice daemon.Invoice, posTerminal da
 		if err = s.repo.UpdateStatus(invoice, repository.STATUS11); err != nil {
 			return err
 		}
-
-		sendWebhook(invoice.UUID, StatusPaymentRefund, invoice.Account, invoice.ClientName, posTerminal.WebHookURL)
+		invoice.Status = repository.STATUS11
+		sendWebhook(invoice, posTerminal.WebHookURL)
 
 		return nil
 	} else if resp.StatusCode == http.StatusInternalServerError {
@@ -224,12 +229,12 @@ func (s *PosInvoiceService) CheckInvoices(posTerminal daemon.PosTerminal, isToda
 				if err = s.UpdateStatus(daemon.Invoice{UUID: uuId}, repository.STATUS9); err != nil {
 					return err
 				}
-				sendWebhook(uuId, StatusPaymentOk, "", "", posTerminal.WebHookURL)
+				sendWebhook(daemon.Invoice{UUID: uuId, Status: repository.STATUS9}, posTerminal.WebHookURL)
 			case 1:
 				if err = s.UpdateStatus(daemon.Invoice{UUID: uuId}, repository.STATUS8); err != nil {
 					return err
 				}
-				sendWebhook(uuId, StatusInvoiceCancel, "", "", posTerminal.WebHookURL)
+				sendWebhook(daemon.Invoice{UUID: uuId, Status: repository.STATUS8}, posTerminal.WebHookURL)
 			}
 		}
 
@@ -259,4 +264,8 @@ func (s *PosInvoiceService) GetInvoiceAmount(invoice daemon.Invoice) (int, error
 
 func (s *PosInvoiceService) GetAllPosTerminals() ([]daemon.PosTerminal, error) {
 	return s.repo.GetAllPosTerminals()
+}
+
+func (s *PosInvoiceService) SetOldInvoicesToCancel() error {
+	return s.repo.SetOldInvoicesToCancel()
 }

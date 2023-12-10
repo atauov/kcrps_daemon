@@ -43,6 +43,10 @@ func (h *Handler) Daemon() {
 }
 
 func (h *Handler) allOperations(posTerminal daemon.PosTerminal) {
+	if err := h.services.SetOldInvoicesToCancel(); err != nil {
+		logrus.Error(err)
+	}
+
 	invoices, err := h.services.GetInWorkInvoices(posTerminal)
 	if err != nil {
 		logrus.Error(err)
@@ -60,6 +64,10 @@ func (h *Handler) allOperations(posTerminal daemon.PosTerminal) {
 		case repository.STATUS2:
 			forCheck = append(forCheck, strconv.Itoa(invoice.UUID))
 		case repository.STATUS4:
+			if err = h.services.CancelInvoice(invoice, posTerminal); err != nil {
+				logrus.Error(err)
+			}
+		case repository.STATUS6:
 			if err = h.services.CancelInvoice(invoice, posTerminal); err != nil {
 				logrus.Error(err)
 			}

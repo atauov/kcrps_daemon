@@ -4,7 +4,7 @@ import "time"
 
 type Invoice struct {
 	UUID       int       `json:"uuid" db:"uuid"`
-	PosID      int       `json:"pos-id"`
+	PosID      string    `json:"pos-id" db:"pos_id"`
 	CreatedAt  time.Time `json:"created-at" db:"created_at"`
 	Account    string    `json:"account" db:"account" binding:"required"`
 	Amount     int       `json:"amount" db:"amount" binding:"required"`
