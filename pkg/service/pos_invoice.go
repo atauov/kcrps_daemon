@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	CreateInvoiceURL = "http://localhost:8080/create-invoice"
-	CancelInvoiceURL = "http://localhost:8080/cancel-invoice"
-	CancelPaymentURL = "http://localhost:8080/cancel-payment"
-	CheckInvoicesURL = "http://localhost:8080/check-invoices"
+	CreateInvoiceURL = "https://ks1.ddns.me/create-invoice"
+	CancelInvoiceURL = "https://ks1.ddns.me/cancel-invoice"
+	CancelPaymentURL = "https://ks1.ddns.me/cancel-payment"
+	CheckInvoicesURL = "https://ks1.ddns.me/check-invoices"
 )
 
 type PosInvoiceService struct {
