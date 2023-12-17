@@ -16,14 +16,14 @@ func NewPosInvoicePostgres(db *sqlx.DB) *PosInvoicePostgres {
 }
 
 func (r *PosInvoicePostgres) UpdateStatus(invoice daemon.Invoice, status int) error {
-	query := fmt.Sprintf(`UPDATE %s SET status=$1 WHERE pos_id=$2 AND uuid = $3`, invoicesTable)
+	query := fmt.Sprintf(`UPDATE %s SET status=$1 WHERE pos_id=$2 AND uuid=$3`, invoicesTable)
 	_, err := r.db.Exec(query, status, invoice.PosID, invoice.UUID)
 	logrus.Printf("NEW STATUS = %d", status)
 	return err
 }
 
 func (r *PosInvoicePostgres) UpdateClientName(invoice daemon.Invoice, clientName string) error {
-	query := fmt.Sprintf(`UPDATE %s SET client_name=$1 WHERE pos_id=$2 AND uuid = $3`, invoicesTable)
+	query := fmt.Sprintf(`UPDATE %s SET client_name=$1 WHERE pos_id=$2 AND uuid=$3`, invoicesTable)
 	_, err := r.db.Exec(query, clientName, invoice.PosID, invoice.UUID)
 	return err
 }
@@ -31,7 +31,7 @@ func (r *PosInvoicePostgres) UpdateClientName(invoice daemon.Invoice, clientName
 func (r *PosInvoicePostgres) GetInWorkInvoices(posTerminal daemon.PosTerminal) ([]daemon.Invoice, error) {
 	var invoices []daemon.Invoice
 
-	query := fmt.Sprintf("SELECT uuid, status, amount, account, message FROM %s WHERE pos_id=$1 "+
+	query := fmt.Sprintf("SELECT uuid, status, amount, account, message, pos_id FROM %s WHERE pos_id=$1 "+
 		"AND status IN($2, $3, $4, $5, $6) ORDER BY created_at", invoicesTable)
 	err := r.db.Select(&invoices, query, posTerminal.Id, STATUS1, STATUS2, STATUS4, STATUS6, STATUS10)
 

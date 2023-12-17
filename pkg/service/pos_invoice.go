@@ -72,10 +72,10 @@ func (s *PosInvoiceService) SendInvoice(invoice daemon.Invoice, posTerminal daem
 		if err = s.repo.UpdateClientName(invoice, response.ClientName); err != nil {
 			return err
 		}
-		if err = s.repo.UpdateStatus(invoice, repository.STATUS1); err != nil {
+		if err = s.repo.UpdateStatus(invoice, repository.STATUS2); err != nil {
 			return err
 		}
-		invoice.Status = repository.STATUS1
+		invoice.Status = repository.STATUS2
 		sendWebhook(invoice, posTerminal.WebHookURL)
 
 		return nil
@@ -226,12 +226,12 @@ func (s *PosInvoiceService) CheckInvoices(posTerminal daemon.PosTerminal, isToda
 
 			switch v {
 			case 2:
-				if err = s.UpdateStatus(daemon.Invoice{UUID: uuId}, repository.STATUS9); err != nil {
+				if err = s.UpdateStatus(daemon.Invoice{UUID: uuId, PosID: posTerminal.Id}, repository.STATUS9); err != nil {
 					return err
 				}
 				sendWebhook(daemon.Invoice{UUID: uuId, Status: repository.STATUS9}, posTerminal.WebHookURL)
 			case 1:
-				if err = s.UpdateStatus(daemon.Invoice{UUID: uuId}, repository.STATUS8); err != nil {
+				if err = s.UpdateStatus(daemon.Invoice{UUID: uuId, PosID: posTerminal.Id}, repository.STATUS8); err != nil {
 					return err
 				}
 				sendWebhook(daemon.Invoice{UUID: uuId, Status: repository.STATUS8}, posTerminal.WebHookURL)
