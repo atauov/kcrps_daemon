@@ -9,7 +9,10 @@ import (
 	"time"
 )
 
-const TimeOutSec = 10
+const (
+	TimeOutSec   = 10
+	TimeOut90Sec = 90
+)
 
 func (h *Handler) Daemon() {
 	posTerminals, err := h.services.GetAllPosTerminals()
@@ -29,6 +32,14 @@ func (h *Handler) Daemon() {
 				running[posTerminal.FlaskId] = true
 				runningMutex.Unlock()
 				go func(posTerminal daemon.PosTerminal) {
+					defer func() {
+						if r := recover(); r != nil {
+							logrus.Errorf("Recovered in allOperations: %v", r)
+							runningMutex.Lock()
+							running[posTerminal.FlaskId] = false
+							runningMutex.Unlock()
+						}
+					}()
 					h.allOperations(posTerminal)
 					runningMutex.Lock()
 					running[posTerminal.FlaskId] = false
@@ -85,6 +96,8 @@ func (h *Handler) allOperations(posTerminal daemon.PosTerminal) {
 		}
 	}
 	if len(forCheck) > 0 {
+		time.Sleep(TimeOut90Sec)
+		logrus.Info("Sleep 90s")
 		if err = h.services.CheckInvoices(posTerminal, 1, forCheck); err != nil {
 			logrus.Error(err)
 		}

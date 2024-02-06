@@ -15,6 +15,8 @@ func sendWebhook(invoice daemon.Invoice, webhookURL string) {
 		Status:     invoice.Status,
 		Account:    invoice.Account,
 		ClientName: invoice.ClientName,
+		Message:    invoice.Message,
+		Amount:     invoice.Amount,
 	})
 	client := &http.Client{}
 	resp, _ := http.NewRequest(http.MethodPost, webhookURL, bytes.NewBuffer(jsonWebHook))

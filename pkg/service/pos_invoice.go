@@ -29,6 +29,8 @@ type WebHook struct {
 	Status     int    `json:"status"`
 	Account    string `json:"account"`
 	ClientName string `json:"client-name"`
+	Message    string `json:"message"`
+	Amount     int    `json:"amount"`
 }
 
 func NewPosInvoiceService(repo repository.PosInvoice) *PosInvoiceService {
