@@ -6,6 +6,7 @@ import (
 	"daemon/pkg/repository"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
@@ -113,7 +114,7 @@ func (s *PosInvoiceService) CancelInvoice(invoice daemon.Invoice, posTerminal da
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		logrus.Fatalf("Ошибка при выполнении запроса: %v", err)
+		return errors.New(fmt.Sprintf("Ошибка при выполнении запроса: %v", err))
 	}
 	defer func(Body io.ReadCloser) {
 		err = Body.Close()
@@ -166,7 +167,7 @@ func (s *PosInvoiceService) CancelPayment(invoice daemon.Invoice, posTerminal da
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		logrus.Fatalf("Ошибка при выполнении запроса: %v", err)
+		return errors.New(fmt.Sprintf("Ошибка при выполнении запроса: %v", err))
 	}
 	defer func(Body io.ReadCloser) {
 		err = Body.Close()
