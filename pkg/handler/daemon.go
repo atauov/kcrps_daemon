@@ -82,15 +82,15 @@ func (h *Handler) allOperations(posTerminal daemon.PosTerminal) {
 			if err = h.services.CancelInvoice(invoice, posTerminal); err != nil {
 				logrus.Error(err)
 			}
-		case repository.STATUS10:
-			amount, err := h.services.GetInvoiceAmount(invoice)
-			if err != nil {
-				logrus.Error(err)
-				continue
-			}
-			if err = h.services.CancelPayment(invoice, posTerminal, amount, 1); err != nil {
-				logrus.Error(err)
-			}
+		//case repository.STATUS10:
+		//	amount, err := h.services.GetInvoiceAmount(invoice)
+		//	if err != nil {
+		//		logrus.Error(err)
+		//		continue
+		//	}
+		//	if err = h.services.CancelPayment(invoice, posTerminal, amount, 1); err != nil {
+		//		logrus.Error(err)
+		//	}
 		default:
 			continue
 		}

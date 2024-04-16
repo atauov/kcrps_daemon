@@ -14,11 +14,13 @@ import (
 )
 
 const (
-	CreateInvoiceURL = "https://ks1.ddns.me/create-invoice"
-	CancelInvoiceURL = "https://ks1.ddns.me/cancel-invoice"
-	CancelPaymentURL = "https://ks1.ddns.me/cancel-payment"
-	CheckInvoicesURL = "https://ks1.ddns.me/check-invoices"
+	CreateInvoiceURL = "/create-invoice"
+	CancelInvoiceURL = "/cancel-invoice"
+	//CancelPaymentURL = "/cancel-payment"
+	CheckInvoicesURL = "/check-invoices"
 )
+
+var ServerUrl string
 
 type PosInvoiceService struct {
 	repo repository.PosInvoice
@@ -50,7 +52,7 @@ func (s *PosInvoiceService) SendInvoice(invoice daemon.Invoice, posTerminal daem
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest(http.MethodPost, CreateInvoiceURL, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest(http.MethodPost, ServerUrl+CreateInvoiceURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}
@@ -106,7 +108,7 @@ func (s *PosInvoiceService) CancelInvoice(invoice daemon.Invoice, posTerminal da
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest(http.MethodPost, CancelInvoiceURL, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest(http.MethodPost, ServerUrl+CancelInvoiceURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}
@@ -147,49 +149,49 @@ func (s *PosInvoiceService) CancelInvoice(invoice daemon.Invoice, posTerminal da
 	return errors.New("unknown error")
 }
 
-func (s *PosInvoiceService) CancelPayment(invoice daemon.Invoice, posTerminal daemon.PosTerminal, amount, isToday int) error {
-
-	paymentCancel := RequestCancelPayment{
-		PosTerminalId: posTerminal.FlaskId,
-		IsToday:       isToday,
-		Amount:        amount,
-		ID:            strconv.Itoa(invoice.UUID),
-	}
-	jsonData, err := json.Marshal(paymentCancel)
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequest(http.MethodPost, CancelPaymentURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return errors.New(fmt.Sprintf("Ошибка при выполнении запроса: %v", err))
-	}
-	defer func(Body io.ReadCloser) {
-		err = Body.Close()
-		if err != nil {
-			logrus.Error(err)
-		}
-	}(resp.Body)
-
-	if resp.StatusCode == http.StatusOK {
-		if err = s.repo.UpdateStatus(invoice, repository.STATUS11); err != nil {
-			return err
-		}
-		invoice.Status = repository.STATUS11
-		sendWebhook(invoice, posTerminal.WebHookURL)
-
-		return nil
-	} else if resp.StatusCode == http.StatusInternalServerError {
-		return errors.New("error on pos, please try later")
-	}
-
-	return errors.New("unknown error")
-}
+//func (s *PosInvoiceService) CancelPayment(invoice daemon.Invoice, posTerminal daemon.PosTerminal, amount, isToday int) error {
+//
+//	paymentCancel := RequestCancelPayment{
+//		PosTerminalId: posTerminal.FlaskId,
+//		IsToday:       isToday,
+//		Amount:        amount,
+//		ID:            strconv.Itoa(invoice.UUID),
+//	}
+//	jsonData, err := json.Marshal(paymentCancel)
+//	if err != nil {
+//		return err
+//	}
+//	req, err := http.NewRequest(http.MethodPost, CancelPaymentURL, bytes.NewBuffer(jsonData))
+//	if err != nil {
+//		return err
+//	}
+//	req.Header.Set("Content-Type", "application/json")
+//	client := &http.Client{}
+//	resp, err := client.Do(req)
+//	if err != nil {
+//		return errors.New(fmt.Sprintf("Ошибка при выполнении запроса: %v", err))
+//	}
+//	defer func(Body io.ReadCloser) {
+//		err = Body.Close()
+//		if err != nil {
+//			logrus.Error(err)
+//		}
+//	}(resp.Body)
+//
+//	if resp.StatusCode == http.StatusOK {
+//		if err = s.repo.UpdateStatus(invoice, repository.STATUS11); err != nil {
+//			return err
+//		}
+//		invoice.Status = repository.STATUS11
+//		sendWebhook(invoice, posTerminal.WebHookURL)
+//
+//		return nil
+//	} else if resp.StatusCode == http.StatusInternalServerError {
+//		return errors.New("error on pos, please try later")
+//	}
+//
+//	return errors.New("unknown error")
+//}
 
 func (s *PosInvoiceService) CheckInvoices(posTerminal daemon.PosTerminal, isToday int, IDs []string) error {
 	invoicesForCheck := RequestCheck{
@@ -201,7 +203,7 @@ func (s *PosInvoiceService) CheckInvoices(posTerminal daemon.PosTerminal, isToda
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest(http.MethodPost, CheckInvoicesURL, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest(http.MethodPost, ServerUrl+CheckInvoicesURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}

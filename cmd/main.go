@@ -22,6 +22,8 @@ func main() {
 		logrus.Fatalf("Cant load env variable: %s", err.Error())
 	}
 
+	service.ServerUrl = os.Getenv("SERVER_URL")
+
 	db, err := repository.NewPostgresDB(repository.Config{
 		Host:     viper.GetString("db.host"),
 		Port:     viper.GetString("db.port"),
